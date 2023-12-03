@@ -1,0 +1,9 @@
+flask
+flask_restful
+flask_cors
+gunicorn
+datamodel-code-generator
+pydantic
+boto3==1.33.6
+prometheus-flask-exporter==0.23.0
+langchain==0.0.308
