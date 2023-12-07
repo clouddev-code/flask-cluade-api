@@ -1,0 +1,28 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: my-cluster
+  region: ap-northeast-1
+
+vpc:
+  subnets:
+    private:
+      ap-northeast-1c: { id:  subnet-02c292982e60a9112}
+      ap-northeast-1a: { id:  subnet-0da0d79569e3392ec}
+  clusterEndpoints:
+    publicAccess:  true
+    privateAccess: true
+
+iam:
+  withOIDC: true
+fargateProfiles:
+  - name: fp-default
+    selectors:
+      - namespace: default
+      - namespace: kube-system
+      - namespace: test-app
+
+cloudwatch:
+  clusterLogging:
+    enableTypes: ["*"]
