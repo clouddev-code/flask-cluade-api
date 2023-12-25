@@ -44,7 +44,12 @@ def chat():
     # OpenAIにリクエストを送信
     result = chatcompletion(data.message['argumentText'])
 
-    res = ChatResponse(message=result)
+    # res = ChatResponse(message=result)
+
+    cards = {
+         "text": result
+    }
+    # res = ChatResponse(cards=cards)
     
     # レスポンスを返却
-    return jsonify(res.dict())
+    return cards

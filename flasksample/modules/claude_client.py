@@ -11,7 +11,7 @@ import json
 
 bedrock_runtime = boto3.client(
     service_name='bedrock-runtime',
-    region_name='us-west-2'
+    region_name='ap-northeast-1'
 )
 
 modelId = 'anthropic.claude-v2:1' 
