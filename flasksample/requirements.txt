@@ -6,4 +6,4 @@ datamodel-code-generator
 pydantic
 boto3==1.33.6
 prometheus-flask-exporter==0.23.0
-langchain==0.0.308
+langchain==0.2.5
