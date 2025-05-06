@@ -14,7 +14,7 @@ bedrock_runtime = boto3.client(
     region_name='ap-northeast-1'
 )
 
-modelId = 'anthropic.claude-v2:1' 
+modelId = 'anthropic.claude-3-7-sonnet-20240229-v1:0' 
 accept = 'application/json'
 contentType = 'application/json'
 
@@ -23,8 +23,14 @@ def chatcompletion(userMessage:str) -> str:
 
     # 推論実行
     body = json.dumps({
-        "prompt": '\n\nHuman:{0}\n\nAssistant:'.format(userMessage),
-        "max_tokens_to_sample": 500,
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 500,
+        "messages": [
+            {
+                "role": "user",
+                "content": userMessage
+            }
+        ]
     })
 
     response = bedrock_runtime.invoke_model(
@@ -34,5 +40,5 @@ def chatcompletion(userMessage:str) -> str:
         body=body
     )
     response_body = json.loads(response.get('body').read())
-    return response_body["completion"]
+    return response_body["content"][0]["text"]
 
