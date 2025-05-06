@@ -33,23 +33,58 @@ def hello():
 @metrics.histogram('requests_latency_seconds', 'Request latency',
                    labels={'status': lambda r: r.status_code, 'path': lambda: request.path})
 def chat():
-    # リクエストボディからデータを取得
-    req = request.get_json()
+    try:
+        # リクエストボディからデータを取得
+        req = request.get_json()
+        if not req:
+            return jsonify({"error": "Invalid JSON"}), 400
+            
+        # リクエストの形式を確認
+        try:
+            data = ChatRequest(**req)
+        except Exception as e:
+            app.logger.error(f"Validation error: {str(e)}")
+            return jsonify({"error": "Invalid request format", "details": str(e)}), 400
 
-    # リクエストの形式を確認
-    data = ChatRequest(**req)
+        # メッセージの存在チェック
+        if not data.message or not data.message.get('argumentText'):
+            return jsonify({"error": "Message argument text is required"}), 400
 
- 
+        # Claudeにリクエストを送信
+        result = chatcompletion(data.message['argumentText'])
+        
+        # エラーチェック
+        if "error" in result:
+            error_status = result.get("status", "unknown_error")
+            
+            # エラータイプに応じたHTTPステータスコードをマッピング
+            status_code_mapping = {
+                "input_error": 400,
+                "validation_error": 400,
+                "timeout_error": 504,
+                "model_not_ready": 503,
+                "throttling_error": 429,
+                "access_denied": 403,
+                "api_error": 502,
+                "format_error": 502,
+                "parse_error": 502,
+                "processing_error": 500,
+                "unknown_error": 500
+            }
+            
+            status_code = status_code_mapping.get(error_status, 500)
+            return jsonify({"error": result["error"], "status": error_status}), status_code
 
-    # OpenAIにリクエストを送信
-    result = chatcompletion(data.message['argumentText'])
-
-    # res = ChatResponse(message=result)
-
-    cards = {
-         "text": result
-    }
-    # res = ChatResponse(cards=cards)
-    
-    # レスポンスを返却
-    return cards
+        # 成功レスポンスの処理
+        if "completion" in result:
+            cards = {
+                "text": result["completion"]
+            }
+            return jsonify(cards), 200
+        else:
+            # 想定外のレスポンス形式
+            return jsonify({"error": "Unexpected response format"}), 500
+            
+    except Exception as e:
+        app.logger.error(f"Unexpected error in chat endpoint: {str(e)}")
+        return jsonify({"error": "Internal server error", "details": str(e)}), 500
