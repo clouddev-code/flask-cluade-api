@@ -1,39 +1,18 @@
-from langchain.chat_models import AzureChatOpenAI
-from langchain.schema import (
-    SystemMessage,
-    HumanMessage,
-    AIMessage,
-)
-
 import os
-import boto3
 import json
 import base64
 from PIL import Image
 from io import BytesIO
-from botocore.client import Config
 import pyshorteners
-
-bedrock_runtime = boto3.client(
-    service_name='bedrock-runtime',
-    region_name='us-west-2'
-)
+import sys
+sys.path.append('/home/ubuntu/flask-cluade-api')
+from flasksample.utils.aws_clients import AWSClientManager, generate_presigned_url
 
 modelId = 'anthropic.claude-v2:1' 
 accept = 'application/json'
 contentType = 'application/json'
 
 
-def generate_presigned_url(filename, bucket_name, object_key, expiration=86400, region='ap-northeast-1'):
-    s3_client = boto3.client('s3', region_name=region)
-
-    s3_client.upload_file(filename, bucket_name, object_key)
-    url = s3_client.generate_presigned_url(
-        'get_object',
-        Params={'Bucket': bucket_name, 'Key': object_key},
-        ExpiresIn=expiration
-    )
-    return url
 
 def chatcompletion(userMessage:str) -> str:
   
@@ -57,6 +36,7 @@ def chatcompletion(userMessage:str) -> str:
         }
     )
 
+    bedrock_runtime = AWSClientManager.get_bedrock_client('us-west-2')
     response = bedrock_runtime.invoke_model(
         body=body,
         modelId="amazon.titan-image-generator-v1",
@@ -74,7 +54,7 @@ def chatcompletion(userMessage:str) -> str:
     bucket_name = 's3b-image-upload-storage-ap-northeast-1'
 
     # 署名付きURLの生成とURL短縮化
-    presigned_url = generate_presigned_url('chihuahua.png',bucket_name, 'chihuahua.png')
+    presigned_url = generate_presigned_url('chihuahua.png', bucket_name, 'chihuahua.png', region='ap-northeast-1')
     # shortener = pyshorteners.Shortener()
     # presigned_short_url = shortener.tinyurl.short(presigned_url)
 

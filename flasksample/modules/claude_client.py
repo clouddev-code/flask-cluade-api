@@ -1,18 +1,6 @@
-from langchain.chat_models import AzureChatOpenAI
-from langchain.schema import (
-    SystemMessage,
-    HumanMessage,
-    AIMessage,
-)
-
 import os
-import boto3
 import json
-
-bedrock_runtime = boto3.client(
-    service_name='bedrock-runtime',
-    region_name='ap-northeast-1'
-)
+from ..utils.aws_clients import AWSClientManager
 
 modelId = 'anthropic.claude-v2:1' 
 accept = 'application/json'
@@ -27,6 +15,7 @@ def chatcompletion(userMessage:str) -> str:
         "max_tokens_to_sample": 500,
     })
 
+    bedrock_runtime = AWSClientManager.get_bedrock_client('ap-northeast-1')
     response = bedrock_runtime.invoke_model(
     	modelId=modelId,
     	accept=accept,
