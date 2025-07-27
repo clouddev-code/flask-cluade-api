@@ -7,6 +7,7 @@ from schemas import (
     ChatResponse,
 )
 from modules.claude_client import chatcompletion
+from modules.strand_agent_client import process_chat_sync
 from prometheus_flask_exporter import PrometheusMetrics
 
 
@@ -41,8 +42,10 @@ def chat():
 
  
 
-    # OpenAIにリクエストを送信
-    result = chatcompletion(data.message['argumentText'])
+    try:
+        result = process_chat_sync(data.message['argumentText'])
+    except Exception as e:
+        result = chatcompletion(data.message['argumentText'])
 
     # res = ChatResponse(message=result)
 
