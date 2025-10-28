@@ -1,0 +1,188 @@
+import * as cdk from 'aws-cdk-lib';
+import { Construct } from 'constructs';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as cr from 'aws-cdk-lib/custom-resources';
+import * as vpclattice from 'aws-cdk-lib/aws-vpclattice';
+
+export class EcsTaskRegistrationStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+    super(scope, id, props);
+
+    // 前提: VPC、ECSクラスター、タスク定義、サービス、VPC Latticeターゲットグループが既に作成済み
+    const vpc = new ec2.Vpc(this, 'Vpc');
+    const cluster = new ecs.Cluster(this, 'Cluster', { vpc });
+    const taskDefinition = new ecs.FargateTaskDefinition(this, 'TaskDef');
+    taskDefinition.addContainer('Container', {
+      image: ecs.ContainerImage.fromRegistry('amazon/amazon-ecs-sample'),
+      portMappings: [{ containerPort: 80 }],
+    });
+
+    const ecsService = new ecs.FargateService(this, 'Service', {
+      cluster,
+      taskDefinition,
+      desiredCount: 2,
+    });
+
+    // VPC Lattice TargetGroup
+    const targetGroup = new vpclattice.CfnTargetGroup(this, 'TargetGroup', {
+      name: 'ecs-target-group',
+      type: 'IP',
+      config: {
+        port: 80,
+        protocol: 'HTTP',
+        vpcIdentifier: vpc.vpcId,
+        ipAddressType: 'IPV4',
+        healthCheck: {
+          enabled: true,
+          protocol: 'HTTP',
+          path: '/',
+          port: 80,
+        },
+      },
+    });
+
+    // カスタムリソース用のLambda関数
+    const registerTasksLambda = new lambda.Function(this, 'RegisterTasksFunction', {
+      runtime: lambda.Runtime.PYTHON_3_9,
+      handler: 'index.handler',
+      code: lambda.Code.fromInline(`
+import boto3
+import json
+import cfnresponse
+import time
+
+ecs_client = boto3.client('ecs')
+vpclattice_client = boto3.client('vpc-lattice')
+
+def handler(event, context):
+    print(f'Event: {json.dumps(event)}')
+    
+    response_data = {}
+    
+    try:
+        request_type = event['RequestType']
+        props = event['ResourceProperties']
+        
+        cluster = props['Cluster']
+        service = props['Service']
+        target_group_id = props['TargetGroupId']
+        port = int(props['Port'])
+        
+        if request_type == 'Create' or request_type == 'Update':
+            # ECSサービスからタスクを取得
+            tasks = list_tasks(cluster, service)
+            
+            # タスク情報を取得
+            task_infos = describe_tasks(cluster, tasks)
+            
+            # タスクのIPアドレスとポートをターゲットグループに登録
+            register_targets(task_infos, target_group_id, port)
+                
+        elif request_type == 'Delete':
+            # 登録解除処理（必要に応じて）
+            # カスタムリソースが削除されても、ECSタスクがまだ存在している可能性があるため、
+            # 明示的に登録解除が必要な場合はここに実装
+            pass
+            
+        cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+        
+    except Exception as e:
+        print(f'Error: {str(e)}')
+        cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': str(e)})
+
+def list_tasks(cluster, service):
+    response = ecs_client.list_tasks(
+        cluster=cluster,
+        serviceName=service
+    )
+    return response['taskArns']
+
+def describe_tasks(cluster, task_arns):
+    if not task_arns:
+        return []
+    
+    response = ecs_client.describe_tasks(
+        cluster=cluster,
+        tasks=task_arns
+    )
+    
+    task_infos = []
+    for task in response['tasks']:
+        if task['lastStatus'] == 'RUNNING':
+            for attachment in task['attachments']:
+                if attachment['type'] == 'ElasticNetworkInterface':
+                    for detail in attachment['details']:
+                        if detail['name'] == 'privateIPv4Address':
+                            task_infos.append({
+                                'taskArn': task['taskArn'],
+                                'ipAddress': detail['value']
+                            })
+    
+    return task_infos
+
+def register_targets(task_infos, target_group_id, port):
+    if not task_infos:
+        print('No tasks to register')
+        return
+    
+    targets = []
+    for task in task_infos:
+        targets.append({
+            'id': task['ipAddress'],
+            'port': port
+        })
+    
+    print(f'Registering targets: {targets}')
+    vpclattice_client.register_targets(
+        targetGroupIdentifier=target_group_id,
+        targets=targets
+    )
+    
+    # 登録したターゲットが有効になるまで待機（必要に応じて）
+    time.sleep(5)
+`),
+      timeout: cdk.Duration.seconds(60),
+      memorySize: 256,
+    });
+
+    // Lambda関数に必要なアクセス権限を付与
+    registerTasksLambda.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'ecs:ListTasks',
+        'ecs:DescribeTasks',
+      ],
+      resources: ['*'], // 本番環境ではより制限的にすることをお勧めします
+    }));
+
+    registerTasksLambda.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'vpc-lattice:RegisterTargets',
+        'vpc-lattice:DeregisterTargets',
+      ],
+      resources: [targetGroup.attrArn],
+    }));
+
+    // カスタムリソースの作成
+    new cr.CustomResource(this, 'RegisterTasksCustomResource', {
+      serviceToken: new cr.Provider(this, 'RegisterTasksProvider', {
+        onEventHandler: registerTasksLambda,
+      }).serviceToken,
+      properties: {
+        Cluster: cluster.clusterName,
+        Service: ecsService.serviceName,
+        TargetGroupId: targetGroup.attrId,
+        Port: '80', // コンテナのポート
+        // 変更時に再実行するための一意のタイムスタンプ
+        Timestamp: Date.now().toString(),
+      },
+    });
+
+    // 出力
+    new cdk.CfnOutput(this, 'TargetGroupId', { value: targetGroup.attrId });
+  }
+}
