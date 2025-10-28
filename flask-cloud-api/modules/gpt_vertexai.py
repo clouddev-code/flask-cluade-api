@@ -8,7 +8,7 @@ import base64
 class OpenAICredentialsRefresher:
     def __init__(self, **kwargs: Any) -> None:
         # Set a dummy key here
-        self.client = openai.OpenAI(**kwargs, api_key="c4c2de60-8162-488c-9721-4abbbf58fba0:ud3/gt0InMi1ToXFF/gmN4qMkFifVsnDie2fcQbt")
+        self.client = openai.OpenAI(**kwargs, api_key="")
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self.client, name)
