@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/flask-cluade-api.iml" filepath="$PROJECT_DIR$/.idea/flask-cluade-api.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../flask-google-genai-api/.idea/flask-google-genai-api.iml" filepath="$PROJECT_DIR$/../flask-google-genai-api/.idea/flask-google-genai-api.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../llm-test/.idea/llm-test.iml" filepath="$PROJECT_DIR$/../llm-test/.idea/llm-test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../bedrock_dev/pythonProject/.idea/pythonProject.iml" filepath="$PROJECT_DIR$/../bedrock_dev/pythonProject/.idea/pythonProject.iml" />
+    </modules>
+  </component>
+</project>

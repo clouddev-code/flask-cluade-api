@@ -22,7 +22,7 @@ spec:
         app: fastapi-app-taget1
     spec:
       containers:
-      - image: 000000000000.dkr.ecr.ap-northeast-1.amazonaws.com/flasksample:latest
+      - image: 905860205176.dkr.ecr.ap-northeast-1.amazonaws.com/flasksample:tokyo
         name: app
         resources:
          requests:
@@ -54,6 +54,7 @@ metadata:
     kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/target-group-attributes: load_balancing.algorithm.type=weighted_random,load_balancing.algorithm.anomaly_mitigation=on
 spec:
   rules:
     - http:

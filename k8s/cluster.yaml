@@ -8,8 +8,8 @@ metadata:
 vpc:
   subnets:
     private:
-      ap-northeast-1c: { id:  subnet-02c292982e60a9112}
-      ap-northeast-1a: { id:  subnet-0da0d79569e3392ec}
+      ap-northeast-1c: { id:  subnet-0aae0f631d0bd26da }
+      ap-northeast-1a: { id:  subnet-0a2fee30707b4b8d3 }
   clusterEndpoints:
     publicAccess:  true
     privateAccess: true
