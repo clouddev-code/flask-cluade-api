@@ -15,4 +15,4 @@ metadata:
   name: run-dev
 description: Cloud Run development service
 run:
-  location: projects/infra-dev-392306/locations/us-west1
+  location: projects/xxxxxxx/locations/us-west1
