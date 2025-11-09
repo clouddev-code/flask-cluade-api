@@ -10,24 +10,11 @@ import base64
 import uuid
 from pydantic import SecretStr
 
-class OpenAICredentialsRefresher:
-    def __init__(self, **kwargs: Any) -> None:
-        # Set a dummy key here
-        self.client = openai.OpenAI(**kwargs, api_key="672e5906-d517-4c58-9d06-967e4dc00fea:HquhuW2JfiB4K/36iEny8OyO1lVaVYORXjHCXMmj")
 
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self.client, name)
-
- 
-
-
-LOCATION="global"
-#LOCATION="us-east5"
 
 accept = 'application/json'
 contentType = 'application/json'
 
-client = OpenAICredentialsRefresher(base_url="https://api.ai.sakura.ad.jp/v1")
 
 def chatcompletion(userMessage:str) -> str:
     prompt = ChatPromptTemplate.from_messages([
@@ -35,8 +22,11 @@ def chatcompletion(userMessage:str) -> str:
     ])
 
     llm = ChatOpenAI(
-        base_url="https://api.ai.sakura.ad.jp/v1",
-        max_tokens=2000
+         base_url="https://api.ai.sakura.ad.jp/v1",
+        model="gpt-oss-120b",
+        max_tokens=2000,
+        stream_usage=False,
+        api_key=SecretStr("")
     )
 
     try:
@@ -64,7 +54,7 @@ def chatcompletion_stream(userMessage: str):
         model="gpt-oss-120b",
         max_tokens=2000,
         stream_usage=True,
-        api_key=SecretStr("672e5906-d517-4c58-9d06-967e4dc00fea:HquhuW2JfiB4K/36iEny8OyO1lVaVYORXjHCXMmj")
+        api_key=SecretStr("")
     )
 
     try:
