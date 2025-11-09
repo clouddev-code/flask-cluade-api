@@ -12,7 +12,10 @@ dependencies = [
     "flask-restful==0.3.10",
     "gunicorn==23.0.0",
     "langchain>=0.3.20",
+    "langchain-aws>=0.2.35",
     "langchain-core>=0.3.41",
     "langchain-google-vertexai>=2.0.14",
+    "langchain-openai>=0.3.35",
     "langfuse>=3.0.2",
+    "openai>=2.7.1",
 ]
