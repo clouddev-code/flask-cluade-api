@@ -34,7 +34,7 @@ def chatcompletion(userMessage:str) -> str:
 
 
     llm = ChatAnthropicVertex(
-        project="infra-dev-392306",
+        project="",
         location=LOCATION,
         model_name="claude-sonnet-4-5@20250929",
         max_tokens=2000,
@@ -66,7 +66,7 @@ def chatcompletion_stream(userMessage: str):
     ])
 
     llm = ChatAnthropicVertex(
-        project="infra-dev-392306",
+        project="",
         location=LOCATION,
         model_name="claude-sonnet-4-5@20250929",
         max_tokens=2000,
