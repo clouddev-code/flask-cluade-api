@@ -42,7 +42,7 @@ def chatcompletion(userMessage:str) -> str:
         llm = ChatVertexAI(
             model="gemini-2.5-pro",
             temperature=0,
-            project="infra-dev-392306",
+            project="",
             max_tokens=None,
             max_retries=2,
             stop=None,
@@ -58,3 +58,30 @@ def chatcompletion(userMessage:str) -> str:
     # ユーザーからのメッセージを受け取る
     return outputText
 
+def chatcompletion_stream(userMessage: str):
+    """
+    ストリーミング用のチャット完了関数
+    LangChainのstreamメソッドを使用してジェネレーターを返す
+    """
+    predefined_run_id = str(uuid.uuid4())
+    prompt = ChatPromptTemplate.from_messages([
+         ("human","{input}")
+    ])
+
+    llm = ChatVertexAI(
+        model="gemini-2.5-pro",
+        temperature=0,
+        project="",
+        max_tokens=None,
+        max_retries=2,
+        stop=None,
+        location="global"
+    )
+
+    try:
+        chain = prompt | llm | StrOutputParser()
+        # streamメソッドを使ってチャンクごとに結果を生成
+        for chunk in chain.stream({"input": userMessage}):
+            yield chunk
+    except Exception as error:
+        raise error
