@@ -1,5 +1,5 @@
 [project]
-name = "flask-cloud-api"
+name = "flask-cloud-api-v2"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -16,6 +16,8 @@ dependencies = [
     "langchain-core>=0.3.41",
     "langchain-google-vertexai>=2.0.14",
     "langchain-openai>=0.3.35",
-    "langfuse>=3.0.2",
     "openai>=2.7.1",
 ]
+
+[tool.uv]
+exclude-newer = "7 days"
