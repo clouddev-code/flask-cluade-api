@@ -1,14 +1,14 @@
-FROM python:3.12.11-slim-bookworm AS base
+FROM python:3.13.13-slim-bookworm AS base
 
 FROM base AS builder
-COPY --from=ghcr.io/astral-sh/uv:0.4.9 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.2 /uv /bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_NODE=copy
 
 WORKDIR /app
 
 COPY uv.lock pyproject.toml /app/
 RUN --mount=type=cache,target=/root/.cache/uv \ 
-   uv sync --frozen --no-install-project --no-dev
+   uv sync --frozen --no-install-project --no-dev 
 
 COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \ 
