@@ -1,0 +1,42 @@
+replicaCount: 1
+
+image:
+  repository: 905860205176.dkr.ecr.ap-northeast-1.amazonaws.com/flasksample
+  tag: tokyo
+  pullPolicy: IfNotPresent
+
+containerPort: 8000
+
+env: []
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 500Mi
+  limits: {}
+
+serviceAccount:
+  create: true
+  # Overrides the generated name, e.g. "flask-api".
+  name: ""
+  # ARN of the IRSA role created by infra/cdk (EksStack "AppServiceAccountRoleArn"
+  # output). Required for the pod to call Bedrock etc. with real credentials.
+  roleArn: ""
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/target-group-attributes: >-
+      load_balancing.algorithm.type=weighted_random,load_balancing.algorithm.anomaly_mitigation=on
+    alb.ingress.kubernetes.io/healthcheck-path: /
+  path: /
+  pathType: Prefix
+
+fullnameOverride: "flask-api"
