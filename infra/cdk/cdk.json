@@ -1,5 +1,5 @@
 {
-  "app": "uv run python app.py",
+  "app": "npx ts-node --prefer-ts-exts bin/app.ts",
   "watch": {
     "include": [
       "**"
@@ -7,9 +7,13 @@
     "exclude": [
       "README.md",
       "cdk*.json",
-      "**/__pycache__",
-      "**/*.pyc",
-      "tests"
+      "**/*.d.ts",
+      "**/*.js",
+      "tsconfig.json",
+      "package*.json",
+      "node_modules",
+      "dist",
+      "test"
     ]
   },
   "context": {

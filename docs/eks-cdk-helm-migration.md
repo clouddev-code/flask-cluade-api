@@ -11,22 +11,25 @@ Manifest(`k8s/pod-deployment.yaml`)、単体の CloudFormation テンプレー�
 
 | レイヤ | ツール | ディレクトリ |
 | --- | --- | --- |
-| クラスタ(VPC / EKSコントロールプレーン / Fargateプロファイル / OIDC・IRSA / AWS Load Balancer Controller) | AWS CDK (Python) | `infra/cdk/` |
+| クラスタ(VPC / EKSコントロールプレーン / Fargateプロファイル / OIDC・IRSA / AWS Load Balancer Controller) | AWS CDK (TypeScript) | `infra/cdk/` |
 | ワークロード(Deployment / Service / Ingress / ServiceAccount) | Helm | `helm/flask-api/` |
 
 削除したファイル: `k8s/`, `network/`(いずれも新構成に置き換え)。
 
 ## 設計判断
 
-- **CDK 言語は Python**: リポジトリが uv 管理の Python プロジェクトであるため、
-  スタック定義もチームの主言語に合わせた。CDK CLI 自体は npm 依存だが、CLI と
-  アプリコードの言語は独立しているため問題ない。
+- **CDK 言語は TypeScript**: 当初は uv 管理の Python で実装していたが、CDK
+  エコシステム(サンプル・L2コンストラクトのドキュメント量)との親和性を優先し
+  TypeScript に切り替えた。CDK CLI 自体が npm 依存のため、ツールチェーンが
+  npm ひとつに揃うメリットもある。Python 版との出力比較(`cdk synth` で得られる
+  CloudFormation テンプレートのリソース構成が完全一致すること)は移行時に
+  確認済み。
 - **AWS Load Balancer Controller は CDK 側で導入**: IRSA ロールと Helm
-  リリースが密結合するクラスタ必須アドオンのため、`cluster.add_helm_chart()`
+  リリースが密結合するクラスタ必須アドオンのため、`cluster.addHelmChart()`
   で CDK が管理する。アプリケーション固有の Helm chart(`helm/flask-api`)とは
   別物。
 - **アプリの IRSA ロールは CDK が作成、ServiceAccount は Helm が作成**: IAM
-  Role(OIDC federated principal)は `infra/cdk/stacks/eks_stack.py` の
+  Role(OIDC federated principal)は `infra/cdk/lib/eks-stack.ts` の
   `EksStack` が作成し、ARN を `AppServiceAccountRoleArn` の CFN Output で
   公開する。Kubernetes 側の `ServiceAccount` リソースは
   `helm/flask-api/templates/serviceaccount.yaml` が作成し、
@@ -50,11 +53,12 @@ Manifest(`k8s/pod-deployment.yaml`)、単体の CloudFormation テンプレー�
 
 ```fish
 cd infra/cdk
-uv sync
+nvm use 22.22.2
+npm install
 set -x CDK_DEFAULT_ACCOUNT (aws sts get-caller-identity --query Account --output text)
 set -x CDK_DEFAULT_REGION ap-northeast-1
-uv run cdk bootstrap   # 初回のみ
-uv run cdk deploy --all
+npx cdk bootstrap   # 初回のみ
+npx cdk deploy --all
 ```
 
 `FlaskApi-Eks-dev` スタックの Outputs に以下が出力される。
@@ -83,16 +87,16 @@ kubectl get ingress -n flask-api flask-api -w
 
 ## 環境を分ける場合
 
-`app.py` は `-c envName=<name>` context でスタック名
+`bin/app.ts` は `-c envName=<name>` context でスタック名
 (`FlaskApi-Network-<name>` / `FlaskApi-Eks-<name>`)とクラスタ名を切り替える。
 Helm 側は `-n flask-api-<name>` 等でネームスペースを分け、release ごとに
 `values-<env>.yaml` を用意する運用を想定。
 
 ## 未実施・要フォローアップ
 
-- `infra/cdk` の `cdk synth`/`cdk deploy` はこのセッションでは AWS
-  認証セッション切れのため実機検証できていない(オフラインでのシンセサイズ
-  ロジック検証のみ実施済み)。デプロイ前に認証を再取得のうえ
-  `cdk diff` で確認すること。
+- `infra/cdk` の `cdk deploy` はこのセッションでは AWS 認証セッション切れの
+  ため実機検証できていない(オフラインで疑似 AZ コンテキストを与えた
+  `cdk synth` によるロジック検証のみ実施、Python 版との出力一致も確認済み)。
+  デプロイ前に認証を再取得のうえ `cdk diff` で確認すること。
 - アプリ用 IRSA ロールの Bedrock 権限は `Resource: "*"` としている。必要で
   あれば利用モデル ARN 単位に絞り込みを検討。
