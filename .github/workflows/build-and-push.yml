@@ -1,0 +1,65 @@
+name: Build and push flask-api image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "flask-cloud-api-v2/**"
+
+permissions:
+  id-token: write
+  contents: write
+
+env:
+  AWS_REGION: ap-northeast-1
+  ECR_REPOSITORY: flasksample
+  YQ_VERSION: v4.44.3
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve short SHA
+        id: sha
+        run: echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PUSH_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: flask-cloud-api-v2
+          push: true
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.sha.outputs.short }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Flux (clusters/dev/flask-api-helmrelease.yaml) syncs whatever tag is
+      # committed here -- there is no Image Automation Controller yet, so
+      # this workflow is the thing that bumps it.
+      - name: Bump image tag in the Flux HelmRelease
+        run: |
+          curl -sL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" -o /usr/local/bin/yq
+          chmod +x /usr/local/bin/yq
+          yq -i '.spec.values.image.tag = "${{ steps.sha.outputs.short }}"' clusters/dev/flask-api-helmrelease.yaml
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add clusters/dev/flask-api-helmrelease.yaml
+          git commit -m "chore: bump flask-api image tag to ${{ steps.sha.outputs.short }}"
+          git push

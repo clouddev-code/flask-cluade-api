@@ -54,7 +54,7 @@ export class EksStack extends cdk.Stack {
     });
 
     this.addAwsLoadBalancerController(cluster);
-    this.appServiceAccountRole = this.addAppIrsaRole(cluster);
+    this.appServiceAccountRole = this.addAppIrsaRole(cluster, props.envName);
 
     new cdk.CfnOutput(this, "ClusterName", { value: cluster.clusterName });
     new cdk.CfnOutput(this, "ClusterEndpoint", {
@@ -110,8 +110,15 @@ export class EksStack extends cdk.Stack {
    * (helm/flask-api), not here -- only the IRSA trust role is
    * cluster-managed. The Helm chart's serviceAccount.roleArn value must
    * be set to this role's ARN (see the AppServiceAccountRoleArn output).
+   *
+   * The role name is pinned (rather than CFN-generated) so the Flux-managed
+   * HelmRelease in clusters/ can reference the ARN deterministically instead
+   * of requiring a manual copy-paste from `cdk deploy` output.
    */
-  private addAppIrsaRole(cluster: eks.FargateCluster): iam.Role {
+  private addAppIrsaRole(
+    cluster: eks.FargateCluster,
+    envName: string,
+  ): iam.Role {
     const oidcProvider = cluster.openIdConnectProvider;
     const subConditionKey = `${oidcProvider.openIdConnectProviderIssuer}:sub`;
     const audConditionKey = `${oidcProvider.openIdConnectProviderIssuer}:aud`;
@@ -131,6 +138,7 @@ export class EksStack extends cdk.Stack {
     );
 
     const role = new iam.Role(this, "AppServiceAccountRole", {
+      roleName: `flask-api-${envName}-app`,
       assumedBy: new iam.FederatedPrincipal(
         oidcProvider.openIdConnectProviderArn,
         { StringEquals: stringConditions },

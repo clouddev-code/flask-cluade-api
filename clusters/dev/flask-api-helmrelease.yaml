@@ -1,0 +1,26 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: flask-api
+  namespace: flux-system
+spec:
+  interval: 5m
+  targetNamespace: flask-api
+  install:
+    createNamespace: true
+  chart:
+    spec:
+      chart: ./helm/flask-api
+      sourceRef:
+        kind: GitRepository
+        name: flask-cluade-api
+  values:
+    image:
+      # Rewritten by .github/workflows/build-and-push.yml on every push to
+      # flask-cloud-api-v2/** on main -- do not edit by hand once CI is live.
+      tag: tokyo
+    serviceAccount:
+      # infra/cdk EksStack pins this role's name to flask-api-<envName>-app,
+      # so the ARN is predictable instead of needing a manual copy from
+      # `cdk deploy` output. Update if envName/account/region ever change.
+      roleArn: arn:aws:iam::905860205176:role/flask-api-dev-app
