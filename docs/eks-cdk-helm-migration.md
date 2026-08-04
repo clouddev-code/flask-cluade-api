@@ -1,5 +1,10 @@
 # EKS デプロイ構成の刷新: cluster = AWS CDK / workload = Helm
 
+> **Note**: このドキュメントの「デプロイ手順」にある手動 `helm upgrade --install`
+> は、`docs/gitops-flux-migration.md` で導入した FluxCD 経由の GitOps に
+> 置き換えられる想定。Flux bootstrap 前の初回確認や緊急時の切り離しには
+> このまま使える。
+
 ## 背景
 
 旧構成は eksctl の `ClusterConfig`(`k8s/cluster.yaml`)、生の Kubernetes

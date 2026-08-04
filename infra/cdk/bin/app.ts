@@ -2,6 +2,7 @@
 import * as cdk from "aws-cdk-lib";
 import { NetworkStack } from "../lib/network-stack";
 import { EksStack } from "../lib/eks-stack";
+import { CiStack } from "../lib/ci-stack";
 
 const app = new cdk.App();
 
@@ -31,6 +32,13 @@ new EksStack(app, `FlaskApi-Eks-${envName}`, {
   vpc: networkStack.vpc,
   clusterName,
   envName,
+});
+
+// Not environment-scoped: one role, shared by CI regardless of which EKS
+// environment it happens to be deploying to.
+new CiStack(app, "FlaskApi-Ci", {
+  env,
+  tags,
 });
 
 app.synth();

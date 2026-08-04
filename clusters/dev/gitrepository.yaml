@@ -1,0 +1,10 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: flask-cluade-api
+  namespace: flux-system
+spec:
+  interval: 5m
+  url: https://github.com/clouddev-code/flask-cluade-api
+  ref:
+    branch: main
