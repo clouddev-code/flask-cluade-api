@@ -1,0 +1,11 @@
+flask-api has been deployed to namespace {{ .Release.Namespace }}.
+
+{{- if .Values.ingress.enabled }}
+Check the ALB hostname once the AWS Load Balancer Controller has reconciled the Ingress:
+
+  kubectl get ingress -n {{ .Release.Namespace }} {{ include "flask-api.fullname" . }} -w
+{{- else }}
+Ingress is disabled. Reach the Service from inside the cluster at:
+
+  {{ include "flask-api.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+{{- end }}

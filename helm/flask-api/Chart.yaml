@@ -1,0 +1,9 @@
+apiVersion: v2
+name: flask-api
+description: >-
+  Deployment/Service/Ingress for the flask-cloud-api-v2 chat API workload.
+  The EKS cluster itself (VPC, control plane, Fargate profiles, IRSA, AWS
+  Load Balancer Controller) is provisioned separately by infra/cdk.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
