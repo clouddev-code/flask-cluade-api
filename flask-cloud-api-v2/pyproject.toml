@@ -15,9 +15,11 @@ dependencies = [
     "langchain-aws>=0.2.35",
     "langchain-core>=0.3.41",
     "langchain-google-vertexai>=2.0.14",
+    "langchain-mcp-adapters>=0.1.0",
     "langchain-openai>=0.3.35",
     "openai>=2.7.1",
 ]
 
 [tool.uv]
 exclude-newer = "7 days"
+python-preference = "only-system"
