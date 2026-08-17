@@ -43,13 +43,18 @@ class SessionStore:
             self._sessions.pop(sid, None)
 
     def ensure_session(self, session_id: str | None) -> str:
-        """session_id を返す。未指定 / 期限切れなら新規発行する。"""
+        """session_id を返す。未指定 / 無効 / 期限切れなら新規発行する。"""
         now = time.time()
         with self._lock:
             self._purge_expired(now)
+            if session_id:
+                try:
+                    uuid.UUID(session_id)
+                except (ValueError, AttributeError, TypeError):
+                    session_id = None
             if session_id and session_id in self._sessions:
                 return session_id
-            new_id = session_id or str(uuid.uuid4())
+            new_id = str(uuid.uuid4())
             self._sessions[new_id] = {"messages": [], "updated_at": now}
             return new_id
 
