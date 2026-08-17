@@ -1,16 +1,24 @@
-from flask import Flask, request, jsonify, Response, stream_with_context
-from flask_restful import Resource, Api
-from flask_cors import CORS
-from schemas import (
-    ChatRequest,
-    ChatResponse,
-)
-# from modules.gemini_vertexai import chatcompletion
-from modules.cloud3_vertexai import chatcompletion, chatcompletion_stream
 import json
-# flask app
+
+from flask import Flask, Response, jsonify, request, stream_with_context
+from flask_cors import CORS
+
+from modules.cloud3_bedrock import chatcompletion, chatcompletion_stream
+from modules.session_store import session_store
+
 app = Flask(__name__)
 CORS(app)
+
+
+def _extract_user_message(req: dict | None) -> tuple[str, str | None]:
+    """リクエストから user_message と session_id を取り出す。"""
+    if not isinstance(req, dict):
+        return "", None
+    user_message = (req.get("message") or {}).get("text", "") or ""
+    session_id = req.get("session_id")
+    if not isinstance(session_id, str) or not session_id:
+        session_id = None
+    return user_message.strip(), session_id
 
 
 @app.route('/')
@@ -18,34 +26,27 @@ def hello():
     return {'message': 'Hello world.'}
 
 
-@app.route('/api/chat',methods=['POST'])
+@app.route('/api/chat', methods=['POST'])
 def chat():
-    # リクエストボディからデータを取得
     req = request.get_json(silent=True)
+    user_message, session_id = _extract_user_message(req)
 
-
-    # Google Chatのメッセージを取得
-    user_message = req.get('message', {}).get('text', '')
-
-    # メッセージがない場合はエラーレスポンスを返す
     if not user_message:
         return jsonify({'error': 'No message text provided'}), 400
 
-    # リクエストの形式を確認
-    #data = ChatRequest(**req)
+    session_id = session_store.ensure_session(session_id)
+    history = session_store.get_messages(session_id)
 
-    # OpenAIにリクエストを送信
-    result = chatcompletion(user_message)
+    text, thinking = chatcompletion(user_message, history=history)
 
-    # res = ChatResponse(message=result)
+    session_store.append(session_id, "user", user_message)
+    session_store.append(session_id, "assistant", text)
 
-    cards = {
-         "text": result
+    return {
+        "text": text,
+        "thinking": thinking,
+        "session_id": session_id,
     }
-    # res = ChatResponse(cards=cards)
-
-    # レスポンスを返却
-    return cards
 
 
 @app.route('/api/chat/stream', methods=['POST'])
@@ -54,42 +55,64 @@ def chat_stream():
     ストリーミング対応のチャットエンドポイント
     Server-Sent Events (SSE) 形式でレスポンスを返す
     """
-    # リクエストボディからデータを取得
     req = request.get_json(silent=True)
+    user_message, session_id = _extract_user_message(req)
 
-    # Google Chatのメッセージを取得
-    user_message = req.get('message', {}).get('text', '')
-
-    # メッセージがない場合はエラーレスポンスを返す
     if not user_message:
         return jsonify({'error': 'No message text provided'}), 400
 
+    session_id = session_store.ensure_session(session_id)
+    history = session_store.get_messages(session_id)
+
     def generate():
-        """
-        ストリーミング用のジェネレーター関数
-        Server-Sent Events (SSE) 形式でデータを送信
-        """
+        full_text = ""
+        full_thinking = ""
         try:
-            full_text = ""
-            for chunk in chatcompletion_stream(user_message):
-                full_text += chunk
-                # SSE形式でデータを送信
-                # data: で始まる行がイベントデータ
-                yield f"data: {json.dumps({'chunk': chunk, 'text': full_text})}\n\n"
+            yield f"data: {json.dumps({'session_id': session_id})}\n\n"
 
-            # ストリーム終了を通知
-            yield f"data: {json.dumps({'done': True, 'text': full_text})}\n\n"
+            for kind, chunk in chatcompletion_stream(user_message, history=history):
+                if kind == "thinking":
+                    full_thinking += chunk
+                elif kind == "text":
+                    full_text += chunk
+                # tool_use / tool_result はイベント通知のみで本文には含めない
+                payload = {
+                    "kind": kind,
+                    "chunk": chunk,
+                    "text": full_text,
+                    "thinking": full_thinking,
+                }
+                yield f"data: {json.dumps(payload)}\n\n"
+
+            session_store.append(session_id, "user", user_message)
+            session_store.append(session_id, "assistant", full_text)
+
+            done_payload = {
+                "done": True,
+                "text": full_text,
+                "thinking": full_thinking,
+                "session_id": session_id,
+            }
+            yield f"data: {json.dumps(done_payload)}\n\n"
         except Exception as e:
-            # エラーが発生した場合
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            yield f"data: {json.dumps({'error': str(e), 'session_id': session_id})}\n\n"
 
-    # Server-Sent Events形式でレスポンスを返す
     return Response(
         stream_with_context(generate()),
         mimetype='text/event-stream',
         headers={
             'Cache-Control': 'no-cache',
-            'X-Accel-Buffering': 'no',  # nginx バッファリング無効化
-            'Connection': 'keep-alive'
-        }
+            'X-Accel-Buffering': 'no',
+            'Connection': 'keep-alive',
+        },
     )
+
+
+@app.route('/api/chat/reset', methods=['POST'])
+def chat_reset():
+    """指定された session_id の会話履歴を破棄する。"""
+    req = request.get_json(silent=True) or {}
+    session_id = req.get("session_id")
+    if isinstance(session_id, str) and session_id:
+        session_store.reset(session_id)
+    return {"ok": True}

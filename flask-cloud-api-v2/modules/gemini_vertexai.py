@@ -8,7 +8,6 @@ def chatcompletion(userMessage: str) -> str:
     llm = ChatVertexAI(
         model="gemini-2.5-pro",
         temperature=0,
-        project="",
         max_tokens=None,
         max_retries=2,
         stop=None,
@@ -28,7 +27,6 @@ def chatcompletion_stream(userMessage: str):
     llm = ChatVertexAI(
         model="gemini-3-pro-preview",
         temperature=0,
-        project="",
         max_tokens=None,
         max_retries=2,
         stop=None,
