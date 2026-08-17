@@ -42,11 +42,11 @@ def chat():
     session_store.append(session_id, "user", user_message)
     session_store.append(session_id, "assistant", text)
 
-    return {
+    return jsonify({
         "text": text,
         "thinking": thinking,
         "session_id": session_id,
-    }
+    })
 
 
 @app.route('/api/chat/stream', methods=['POST'])
